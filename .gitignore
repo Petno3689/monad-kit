@@ -1,0 +1,15 @@
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+node_modules/
+dist/
+*.local
+*.log
+.env
+.env.*
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
