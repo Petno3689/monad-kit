@@ -55,7 +55,7 @@ interface Props {
   balance: bigint | undefined;
 }
 
-/** Remount with `key={game key address}`: the watched request lives in refs. */
+/** Remount with a key derived from the game key address (unique among siblings): the watched request lives in refs. */
 export function ChestPanel({ ctx, chest, balance }: Props) {
   const { account, walletClient, gasPct, busy, run, refreshBalance } = ctx;
   const player = account.address;

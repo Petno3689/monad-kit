@@ -15,7 +15,7 @@ interface Props {
   registry: Address;
 }
 
-/** Remount with `key={game key address}`. The name belongs to the game key, the address that plays. */
+/** Remount with a key derived from the game key address (unique among siblings). The name belongs to the game key, the address that plays. */
 export function NicknamePanel({ ctx, registry }: Props) {
   const { account, walletClient, gasPct, busy, run, say } = ctx;
   const [input, setInput] = useState('');

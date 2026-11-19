@@ -281,7 +281,8 @@ export default function App() {
           <p>Not deployed: set CHEST_GAME_ADDRESS in src/config.ts after deploying.</p>
         </section>
       ) : ctx ? (
-        <ChestPanel key={ctx.account.address} ctx={ctx} chest={CHEST_GAME_ADDRESS} balance={balance.value} />
+        // Sibling keys must be unique: with duplicate keys React loses the old panel and keeps it mounted (duplicated Chest panels).
+        <ChestPanel key={`chest-${ctx.account.address}`} ctx={ctx} chest={CHEST_GAME_ADDRESS} balance={balance.value} />
       ) : (
         <section>
           <h2>Chest</h2>
@@ -295,7 +296,7 @@ export default function App() {
           <p>Not deployed: set NAME_REGISTRY_ADDRESS in src/config.ts after deploying.</p>
         </section>
       ) : ctx ? (
-        <NicknamePanel key={ctx.account.address} ctx={ctx} registry={NAME_REGISTRY_ADDRESS} />
+        <NicknamePanel key={`names-${ctx.account.address}`} ctx={ctx} registry={NAME_REGISTRY_ADDRESS} />
       ) : null}
 
       {CHEST_GAME_ADDRESS === null ? (
