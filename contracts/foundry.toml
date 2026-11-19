@@ -16,5 +16,8 @@ bytecode_hash = "none"
 cbor_metadata = true
 use_literal_content = true
 
+# Generators write golden vectors there; golden tests read them.
+fs_permissions = [{ access = "read-write", path = "../shared/test/vectors" }]
+
 [rpc_endpoints]
 monad_testnet = "https://testnet-rpc.monad.xyz"
