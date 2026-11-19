@@ -4,6 +4,9 @@ out = "out"
 test = "test"
 libs = ["lib"]
 solc_version = "0.8.38"
+# Tests and scripts run with Monad's EVM rules and gas pricing (cold account 10 100,
+# cold storage page 8 100 per 128 slots), so gas checks match the chain; supported since Foundry 1.8.
+network = "monad"
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
