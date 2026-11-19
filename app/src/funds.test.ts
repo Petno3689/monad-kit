@@ -225,6 +225,26 @@ describe('planWithdraw and withdraw', () => {
     expect(sent).toHaveLength(0);
   });
 
+  it('plans a zero value when a dust balance is refused an estimate, so withdraw has nothing to withdraw', async () => {
+    const estimateError = new BaseError('estimate failed', { cause: new InsufficientFundsError({ cause: new BaseError('x') }) });
+    const { client } = fakeClient({ balance: 5n, maxFeePerGas: 5n, maxPriorityFeePerGas: 3n, estimateError });
+    expect(await planWithdraw(client, FROM, TO)).toEqual({
+      value: 0n,
+      gas: TRANSFER_GAS,
+      maxFeePerGas: 5n,
+      maxPriorityFeePerGas: 3n,
+    });
+    const { wallet, sent } = fakeWallet();
+    await expect(withdraw(client, wallet, account, TO)).rejects.toBeInstanceOf(NothingToWithdrawError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('still propagates a revert of the estimate as TransferRejectedError', async () => {
+    const estimateError = new BaseError('estimate failed', { cause: new ExecutionRevertedError({ message: 'execution reverted' }) });
+    const { client } = fakeClient({ balance: 1_000_000n, estimateError });
+    await expect(planWithdraw(client, FROM, TO)).rejects.toBeInstanceOf(TransferRejectedError);
+  });
+
   it('throws NothingToWithdrawError and sends nothing at a zero balance', async () => {
     const { client } = fakeClient({ balance: 0n });
     const { wallet, sent } = fakeWallet();

@@ -110,7 +110,14 @@ export async function planWithdraw(client: FundsClient, from: Address, to: Addre
   const { maxFeePerGas, maxPriorityFeePerGas } = fees;
   // A node refuses to estimate for a sender with nothing: there is nothing to withdraw anyway.
   if (balance === 0n) return { value: 0n, gas: TRANSFER_GAS, maxFeePerGas, maxPriorityFeePerGas };
-  const gas = await estimateTransferGas(client, from, to);
+  let gas: bigint;
+  try {
+    gas = await estimateTransferGas(client, from, to);
+  } catch (error) {
+    // A key holding only dust may be refused an estimate: that too means there is nothing to withdraw.
+    if (error instanceof InsufficientBalanceError) return { value: 0n, gas: TRANSFER_GAS, maxFeePerGas, maxPriorityFeePerGas };
+    throw error;
+  }
   return { value: withdrawAmount(balance, maxFeePerGas, gas), gas, maxFeePerGas, maxPriorityFeePerGas };
 }
 
