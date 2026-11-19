@@ -2,7 +2,15 @@
 
 monad-kit is a starter kit for Monad testnet apps. It has a Foundry project with tested contracts (randomness through Pyth Entropy, a score board, a nickname registry, a chest example) and a Vite + React + TypeScript + viem front end with a ready chain config, an RPC rate limiter, a session key, a transaction queue and log reading. It is extracted from a finished game, Unstable Portals Lab, and contains only the shared, proven modules.
 
-**Status:** Usable; the demo is not deployed yet. (November 2026)
+**Status:** Deployed on Monad testnet on 19 November 2026. Live demo: https://monad-kit.vercel.app
+
+### Deployed contracts
+
+| Contract | Address | Verified on Sourcify |
+| --- | --- | --- |
+| `PythEntropySource` | `0x5fA4e703820208c5585f83dC7d4630E8dF598847` | yes (match) |
+| `ChestGame` | `0xC674f065eae134151B58F6D12b3A7a08bc9F6e84` | yes (match) |
+| `NameRegistry` | `0x1a7C4F4DfC86f618B3debF61F2FEDB9Ac91c509B` | yes (match) |
 
 ## What's inside
 
@@ -72,7 +80,7 @@ cd app
 npm run dev
 ```
 
-If localhost does not open: `npm run dev -- --host 127.0.0.1`. The contract addresses in `app/src/config.ts` are filled in only after the first deployment.
+If localhost does not open: `npm run dev -- --host 127.0.0.1`. `app/src/config.ts` holds the kit's own deployment. A fork deploys its own contracts and sets its own `APP_ORIGIN` before anyone funds a key (see [docs/DEPLOY.md](docs/DEPLOY.md)).
 
 ## Deploying
 
@@ -94,7 +102,6 @@ The repository is built with Claude Code working from tickets. Rules for Claude 
 - Mismatch confirmation uses `window.confirm`.
 - Only injected wallets are supported (no WalletConnect).
 - Monad testnet only.
-- `OPEN_GAS_FALLBACK` is to be re-measured after the first deployment.
 
 ## Origin
 

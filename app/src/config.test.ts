@@ -8,7 +8,7 @@ describe('SESSION_MESSAGE', () => {
         'monad-kit demo - game key',
         'Signing this creates your game key for Monad testnet (chain 10143).',
         'Version: session-key-v1',
-        'Sign only on http://localhost:5173 - any site that gets this signature can play with your game key and spend its MON.',
+        'Sign only on https://monad-kit.vercel.app - any site that gets this signature can play with your game key and spend its MON.',
       ].join('\n'),
     );
   });

@@ -26,9 +26,9 @@ contract ChestMathGoldenTest is Test {
 
         // The word column and the rarity column must have the same length.
         uint256 n = 0;
-        while (vm.keyExists(json, _key(n, "word"))) n++;
+        while (vm.keyExistsJson(json, _key(n, "word"))) n++;
         uint256 nRarity = 0;
-        while (vm.keyExists(json, _key(nRarity, "rarity"))) nRarity++;
+        while (vm.keyExistsJson(json, _key(nRarity, "rarity"))) nRarity++;
         assertEq(n, nRarity, "column length mismatch");
         assertGe(n, 1015, "expected at least 1015 vectors");
 

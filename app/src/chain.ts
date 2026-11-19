@@ -12,7 +12,8 @@ export const monadTestnet = defineChain({
   rpcUrls: { default: { http: [MONAD_RPC_URL] } },
 });
 
-// The public RPC allows about 15 requests/s per IP, shared with the wallet: stay at 10.
+// docs.monad.xyz lists the public RPC limit as 20 requests/s and the game observed about 15;
+// the kit stays at 10 because the per-IP limit is shared with the wallet.
 export const limitedFetch = createRateLimitedFetch({
   fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
   maxPerSecond: 10,
