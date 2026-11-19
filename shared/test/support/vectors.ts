@@ -16,14 +16,24 @@ export interface ChestVector {
 
 const CHEST_VECTORS = fileURLToPath(new URL("../vectors/chest-vectors.json", import.meta.url));
 
+export function parseChestVectors(json: string): ChestVector[] {
+  const parsed = JSON.parse(json) as { vectors: { label: string; word: unknown; rarity: unknown }[] };
+  return parsed.vectors.map((v, i) => {
+    if (typeof v.word !== "string") {
+      throw new Error(`chest vector row ${i}: word must be a decimal string, got ${typeof v.word}`);
+    }
+    if (typeof v.rarity !== "number") {
+      throw new Error(`chest vector row ${i}: rarity must be a number, got ${typeof v.rarity}`);
+    }
+    return { label: v.label, word: BigInt(v.word), rarity: v.rarity };
+  });
+}
+
 export function loadChestVectors(): ChestVector[] {
   if (!existsSync(CHEST_VECTORS)) {
     throw new Error(
       "chest-vectors.json is missing: run `forge script script/GenChestVectors.s.sol` from contracts/",
     );
   }
-  const parsed = JSON.parse(readFileSync(CHEST_VECTORS, "utf8")) as {
-    vectors: { label: string; word: string; rarity: number }[];
-  };
-  return parsed.vectors.map((v) => ({ label: v.label, word: BigInt(v.word), rarity: v.rarity }));
+  return parseChestVectors(readFileSync(CHEST_VECTORS, "utf8"));
 }

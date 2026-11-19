@@ -8,3 +8,8 @@
 - [ ] ABI diff просмотрен.
 - [ ] Ревьюер сам пересобирает и перезапускает тесты.
 - [ ] Газ измеряет ревьюер, не Claude Code.
+- [ ] ABI JSON-файлы в `app/src/abi/` равны выводу `forge inspect <Contract> abi --json` (руками не правятся); `randomSource.abi.json` — это ABI интерфейса `IRandomSource`, а не `PythEntropySource`.
+- [ ] Перегенерированные golden-векторы побайтово идентичны прежним (повторный запуск генератора не даёт diff).
+- [ ] Логика цепочки проверена на локальном anvil.
+- [ ] Газ проверен под ценами Monad (`network = "monad"` в foundry.toml).
+- [ ] Для работы с UI владелец сам смотрит страницу через `npm run dev`.

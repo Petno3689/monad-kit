@@ -1,21 +1,40 @@
 # monad-kit
 
-monad-kit is a starter kit for Monad testnet apps: a Foundry project with tested contracts, and a Vite + React + TypeScript + viem front end with a ready chain config and an RPC rate limiter that keeps the app under the public RPC limit. It is extracted from a finished game, Unstable Portals Lab.
+monad-kit is a starter kit for Monad testnet apps. It has a Foundry project with tested contracts (randomness through Pyth Entropy, a score board, a nickname registry, a chest example) and a Vite + React + TypeScript + viem front end with a ready chain config, an RPC rate limiter, a session key, a transaction queue and log reading. It is extracted from a finished game, Unstable Portals Lab, and contains only the shared, proven modules.
 
-**Status:** Under construction (November 2026)
+**Status:** Usable; the demo is not deployed yet. (November 2026)
 
-## Layout
+## What's inside
 
-- `contracts/` — Foundry project (Solidity 0.8.38, forge-std v1.17.0, Monad-ready compiler settings).
-- `app/` — Vite + React + TypeScript (strict) + viem front end. No wagmi.
-- `docs/` — ticket template and review checklist for working with Claude Code.
+| Module | What it is for | Where |
+| --- | --- | --- |
+| `IRandomSource`, `PythEntropySource` | Random-source interface and its Pyth Entropy V2 implementation | `contracts/src/` |
+| `MonadTestnet` | Monad testnet constants (chain id, etc.) | `contracts/src/MonadTestnet.sol` |
+| `ScoreBoard` | On-chain score board | `contracts/src/ScoreBoard.sol` |
+| `NameRegistry` | Nicknames for addresses | `contracts/src/NameRegistry.sol` |
+| `ChestMath`, `ChestGame` | Chest example: rarity from a random word, and the game on top of a random source | `contracts/src/` |
+| Deploy scripts | `Deploy.s.sol` (PythEntropySource + ChestGame), `DeployNames.s.sol` (NameRegistry); both refuse any chain except 10143 | `contracts/script/` |
+| ChestMath mirror + golden vectors | TypeScript copy of `ChestMath` and the shared JSON vectors tested from both Solidity and TS; the vectors are produced by the forge script `forge script script/GenChestVectors.s.sol` (run from `contracts/`), and rerunning it must give a byte-identical file | `shared/src/`, `shared/test/`, `contracts/script/GenChestVectors.s.sol` |
+| `chain` | Monad testnet chain definition for viem | `app/src/chain.ts` |
+| `rpcLimiter` | Keeps requests under the public RPC limit (10/s) | `app/src/rpcLimiter.ts` |
+| `sessionKey` | Game key derived from a wallet signature | `app/src/sessionKey.ts` |
+| `funds` | Top-up and withdraw of the session key | `app/src/funds.ts` |
+| `tx` | Sending transactions (estimate × 120 % gas) | `app/src/tx.ts` |
+| `txQueue` | Sequential sends, waits 3 blocks after each inclusion | `app/src/txQueue.ts` |
+| `backoff` | Retry delays | `app/src/backoff.ts` |
+| `logs` | `eth_getLogs` in 100-block chunks | `app/src/logs.ts` |
+| `names` | Nickname registry client | `app/src/names.ts` |
+| `wallet` | Injected-wallet connection | `app/src/wallet.ts` |
+| `chest` | Chest game client | `app/src/chest.ts` |
+| `errors` | Error mapping to user text | `app/src/errors.ts` |
+| Demo UI | Panels for key, funds, chest, board, nickname | `app/src/App.tsx`, `app/src/ui/` |
 
-## Prerequisites
+## Quick start
 
-- [Foundry](https://book.getfoundry.sh/) (forge)
-- Node 22+
+Prerequisites:
 
-## Build and test
+- [Foundry](https://book.getfoundry.sh/) ≥ 1.8 (checked on 1.8.3 and 1.9.0). `contracts/foundry.toml` sets `network = "monad"`, so forge uses Monad opcode pricing.
+- Node 22.
 
 Contracts:
 
@@ -23,6 +42,15 @@ Contracts:
 cd contracts
 forge build
 forge test
+```
+
+Shared (ChestMath mirror and golden vectors):
+
+```
+cd shared
+npm install
+npm test
+npm run typecheck
 ```
 
 App:
@@ -33,8 +61,40 @@ npm install
 npm test
 npm run build
 npm run lint
+```
+
+`npm run build` also type-checks the app (`tsc -b`).
+
+Run the demo:
+
+```
+cd app
 npm run dev
 ```
+
+If localhost does not open: `npm run dev -- --host 127.0.0.1`. The contract addresses in `app/src/config.ts` are filled in only after the first deployment.
+
+## Deploying
+
+See [docs/DEPLOY.md](docs/DEPLOY.md) (in Russian).
+
+## Monad and Pyth facts
+
+Dated, sourced facts about the network, Pyth Entropy and tooling: [docs/MONAD-PYTH.md](docs/MONAD-PYTH.md) (in Russian).
+
+## Working with Claude Code
+
+The repository is built with Claude Code working from tickets. Rules for Claude Code are in [CLAUDE.md](CLAUDE.md); the ticket template and the review checklist are in [docs/TICKET-TEMPLATE.md](docs/TICKET-TEMPLATE.md) and [docs/REVIEW-CHECKLIST.md](docs/REVIEW-CHECKLIST.md).
+
+## Known limitations
+
+- Sending: if a transaction reached the node but the answer was lost, viem's retry can answer "already known" / "nonce too low" although the transaction lands. The kit does not yet check by hash before reporting a failure.
+- Withdraw leaves dust: the key reserves gas × maxFeePerGas but pays gas × effective price (live example: 0.00042 MON left).
+- If the request id is not found within 3 attempts right after `open` and the reveal has already landed, the chest panel shows nothing (the board still shows it).
+- Mismatch confirmation uses `window.confirm`.
+- Only injected wallets are supported (no WalletConnect).
+- Monad testnet only.
+- `OPEN_GAS_FALLBACK` is to be re-measured after the first deployment.
 
 ## Origin
 
