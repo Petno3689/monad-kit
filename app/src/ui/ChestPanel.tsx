@@ -4,6 +4,7 @@ import { rarityName } from '@shared/chestMath';
 import type { Rarity } from '@shared/chestMath';
 import { publicClient } from '../chain';
 import {
+  articleFor,
   cancelAvailability,
   cancelChest,
   findCancelled,
@@ -120,7 +121,6 @@ export function ChestPanel({ ctx, chest, balance }: Props) {
       }
       status.refresh();
       refreshBalance();
-      return 'Chest requested: waiting for the random word';
     });
 
   const cancelRequest = () =>
@@ -160,7 +160,7 @@ export function ChestPanel({ ctx, chest, balance }: Props) {
       ) : null}
       {result?.kind === 'opened' ? (
         <p className="result">
-          You got a <strong>{rarityName(result.rarity)}</strong> chest.
+          You got {articleFor(rarityName(result.rarity))} <strong>{rarityName(result.rarity)}</strong> chest.
         </p>
       ) : null}
       {result?.kind === 'cancelled' ? <p className="result">The request was cancelled.</p> : null}

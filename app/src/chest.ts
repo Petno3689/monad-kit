@@ -13,6 +13,11 @@ const sourceAbi = randomSourceAbi as Abi;
 
 export const BOARD_PAGE_SIZE = 100n;
 
+/** The indefinite article for a word: 'an' before a vowel letter, else 'a'. */
+export function articleFor(word: string): 'a' | 'an' {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
+
 type Reader = Pick<PublicClient, 'readContract'>;
 
 /** The current randomness fee: read from the chest's source every time, because it changes. */

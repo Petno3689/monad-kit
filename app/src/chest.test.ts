@@ -4,6 +4,7 @@ import type { Abi, Account, Address, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import chestGameAbi from './abi/chestGame.abi.json';
 import {
+  articleFor,
   cancelAvailability,
   cancelChest,
   findCancelled,
@@ -19,6 +20,8 @@ import {
   requestFromBlock,
 } from './chest';
 import type { Pending } from './chest';
+import { rarityName } from '@shared/chestMath';
+import type { Rarity } from '@shared/chestMath';
 
 const abi = chestGameAbi as Abi;
 const CHEST = '0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0' as Address;
@@ -233,6 +236,13 @@ describe('cancelAvailability', () => {
 
   it('is never allowed without a request', () => {
     expect(cancelAvailability(9_999n, { ...pending, active: false }, true)).toEqual({ allowed: false, availableFromSec: 0n });
+  });
+});
+
+describe('articleFor', () => {
+  it('gives a, an, a, an, a for the five rarity names', () => {
+    const rarities: Rarity[] = [1, 2, 3, 4, 5];
+    expect(rarities.map((r) => articleFor(rarityName(r)))).toEqual(['a', 'an', 'a', 'an', 'a']);
   });
 });
 
