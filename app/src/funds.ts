@@ -1,6 +1,7 @@
 import { BaseError, ExecutionRevertedError, InsufficientFundsError, parseEther, toHex } from 'viem';
-import type { Account, Address, Chain, Hex, PublicClient, Transport, WalletClient } from 'viem';
-import { TxReverted } from './tx';
+import type { Account, Address, Hex, PublicClient } from 'viem';
+import { TxReverted, sendAndWait } from './tx';
+import type { TxSender } from './tx';
 
 /** Gas of a plain value transfer to an address without code; the fallback before an estimate is known. */
 export const TRANSFER_GAS = 21_000n;
@@ -66,7 +67,7 @@ export class NothingToWithdrawError extends Error {
 }
 
 type FundsClient = Pick<PublicClient, 'getBalance' | 'estimateFeesPerGas' | 'estimateGas' | 'waitForTransactionReceipt'>;
-type FundsWallet = Pick<WalletClient<Transport, Chain, Account>, 'sendTransaction'>;
+type FundsWallet = TxSender;
 
 /**
  * Gas a plain transfer of MON from `from` to `to` needs. A recipient with code (a smart wallet,
@@ -130,17 +131,18 @@ export async function withdraw(
 ): Promise<{ hash: Hex; blockNumber: bigint }> {
   const plan = await planWithdraw(client, account.address, to);
   if (plan.value === 0n) throw new NothingToWithdrawError();
-  const hash = await wallet.sendTransaction({
-    account,
-    to,
-    value: plan.value,
-    gas: plan.gas,
-    maxFeePerGas: plan.maxFeePerGas,
-    maxPriorityFeePerGas: plan.maxPriorityFeePerGas,
+  return sendAndWait({
+    publicClient: client,
+    walletClient: wallet,
+    request: {
+      account,
+      to,
+      value: plan.value,
+      gas: plan.gas,
+      maxFeePerGas: plan.maxFeePerGas,
+      maxPriorityFeePerGas: plan.maxPriorityFeePerGas,
+    },
   });
-  const receipt = await client.waitForTransactionReceipt({ hash });
-  if (receipt.status === 'reverted') throw new TxReverted(hash, plan.gas, receipt.blockNumber);
-  return { hash, blockNumber: receipt.blockNumber };
 }
 
 /** An EIP-1193 `request`, e.g. `window.ethereum.request`. */

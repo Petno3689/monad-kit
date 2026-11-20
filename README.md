@@ -96,7 +96,7 @@ The repository is built with Claude Code working from tickets. Rules for Claude 
 
 ## Known limitations
 
-- Sending: if a transaction reached the node but the answer was lost, viem's retry can answer "already known" / "nonce too low" although the transaction lands. The kit does not yet check by hash before reporting a failure.
+- Sending: after a send error the kit waits up to 15 s for the transaction by its hash; a transaction that lands later than that is still reported as failed.
 - Withdraw leaves dust: the key reserves gas × maxFeePerGas but pays gas × effective price (live example: 0.00042 MON left).
 - If the request id is not found within 3 attempts right after `open` and the reveal has already landed, the chest panel shows nothing (the board still shows it).
 - Mismatch confirmation uses `window.confirm`.

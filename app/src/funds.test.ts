@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BaseError, ExecutionRevertedError, HttpRequestError, InsufficientFundsError, type Account, type Address, type Hex } from 'viem';
+import { BaseError, ExecutionRevertedError, HttpRequestError, InsufficientFundsError, keccak256, type Account, type Address, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import {
   GasEstimateUnavailableError,
@@ -16,12 +16,13 @@ import {
   withdraw,
   withdrawAmount,
 } from './funds';
-import { TxReverted } from './tx';
+import { LOST_ANSWER_WAIT_MS, TxReverted } from './tx';
 
 const FROM = '0x1111111111111111111111111111111111111111' as Address;
 const TO = '0x2222222222222222222222222222222222222222' as Address;
 const OWNER = '0x3333333333333333333333333333333333333333' as Address;
 const HASH = `0x${'ab'.repeat(32)}` as Hex;
+const SERIALIZED = `0x02${'ef'.repeat(40)}` as Hex;
 
 describe('actionCost', () => {
   it('adds the fee and the gas limit at the max fee per gas', () => {
@@ -109,6 +110,7 @@ interface FakeOptions {
 function fakeClient(options: FakeOptions = {}) {
   const { balance = 10_000_000n, gas = 21_000n, maxFeePerGas = 5n, maxPriorityFeePerGas = 2n, estimateError, receiptStatus = 'success' } = options;
   const estimateArgs: unknown[] = [];
+  const waits: unknown[] = [];
   const client = {
     getBalance: async () => balance,
     estimateFeesPerGas: async () => ({ maxFeePerGas, maxPriorityFeePerGas }),
@@ -117,20 +119,28 @@ function fakeClient(options: FakeOptions = {}) {
       if (estimateError) throw estimateError;
       return gas;
     },
-    waitForTransactionReceipt: async () => ({ status: receiptStatus, blockNumber: 77n, gasUsed: 20_000n }),
-  };
-  return { client: client as never, estimateArgs };
-}
-
-function fakeWallet() {
-  const sent: Record<string, unknown>[] = [];
-  const wallet = {
-    sendTransaction: async (args: Record<string, unknown>) => {
-      sent.push(args);
-      return HASH;
+    waitForTransactionReceipt: async (args: unknown) => {
+      waits.push(args);
+      return { status: receiptStatus, blockNumber: 77n, gasUsed: 20_000n };
     },
   };
-  return { wallet: wallet as never, sent };
+  return { client: client as never, estimateArgs, waits };
+}
+
+function fakeWallet(options: { sendError?: unknown } = {}) {
+  const prepared: Record<string, unknown>[] = [];
+  const wallet = {
+    prepareTransactionRequest: async (args: Record<string, unknown>) => {
+      prepared.push(args);
+      return args;
+    },
+    signTransaction: async () => SERIALIZED,
+    sendRawTransaction: async () => {
+      if (options.sendError) throw options.sendError;
+      return keccak256(SERIALIZED);
+    },
+  };
+  return { wallet: wallet as never, prepared };
 }
 
 const account = privateKeyToAccount(`0x${'11'.repeat(32)}`) as Account;
@@ -195,10 +205,10 @@ describe('planWithdraw and withdraw', () => {
     const options = { balance: 1_000_000n, gas: 50_000n, maxFeePerGas: 5n, maxPriorityFeePerGas: 3n };
     const plan = await planWithdraw(fakeClient(options).client, account.address, TO);
     const { client } = fakeClient(options);
-    const { wallet, sent } = fakeWallet();
+    const { wallet, prepared } = fakeWallet();
     const result = await withdraw(client, wallet, account, TO);
-    expect(result).toEqual({ hash: HASH, blockNumber: 77n });
-    expect(sent).toEqual([
+    expect(result).toEqual({ hash: keccak256(SERIALIZED), blockNumber: 77n });
+    expect(prepared).toEqual([
       { account, to: TO, value: plan.value, gas: 50_000n, maxFeePerGas: 5n, maxPriorityFeePerGas: 3n },
     ]);
     // value + gas limit at maxFeePerGas spends the whole balance, no more
@@ -219,10 +229,10 @@ describe('planWithdraw and withdraw', () => {
   it('throws NothingToWithdrawError even when the node would refuse to estimate for an empty sender', async () => {
     const estimateError = new BaseError('estimate failed', { cause: new InsufficientFundsError({ cause: new BaseError('x') }) });
     const { client, estimateArgs } = fakeClient({ balance: 0n, estimateError });
-    const { wallet, sent } = fakeWallet();
+    const { wallet, prepared } = fakeWallet();
     await expect(withdraw(client, wallet, account, TO)).rejects.toBeInstanceOf(NothingToWithdrawError);
     expect(estimateArgs).toHaveLength(0);
-    expect(sent).toHaveLength(0);
+    expect(prepared).toHaveLength(0);
   });
 
   it('plans a zero value when a dust balance is refused an estimate, so withdraw has nothing to withdraw', async () => {
@@ -234,9 +244,9 @@ describe('planWithdraw and withdraw', () => {
       maxFeePerGas: 5n,
       maxPriorityFeePerGas: 3n,
     });
-    const { wallet, sent } = fakeWallet();
+    const { wallet, prepared } = fakeWallet();
     await expect(withdraw(client, wallet, account, TO)).rejects.toBeInstanceOf(NothingToWithdrawError);
-    expect(sent).toHaveLength(0);
+    expect(prepared).toHaveLength(0);
   });
 
   it('still propagates a revert of the estimate as TransferRejectedError', async () => {
@@ -247,23 +257,23 @@ describe('planWithdraw and withdraw', () => {
 
   it('throws NothingToWithdrawError and sends nothing at a zero balance', async () => {
     const { client } = fakeClient({ balance: 0n });
-    const { wallet, sent } = fakeWallet();
+    const { wallet, prepared } = fakeWallet();
     await expect(withdraw(client, wallet, account, TO)).rejects.toBeInstanceOf(NothingToWithdrawError);
-    expect(sent).toHaveLength(0);
+    expect(prepared).toHaveLength(0);
   });
 
   it('throws NothingToWithdrawError when the balance only covers the gas', async () => {
     const { client } = fakeClient({ balance: 21_000n * 5n, gas: 21_000n, maxFeePerGas: 5n });
-    const { wallet, sent } = fakeWallet();
+    const { wallet, prepared } = fakeWallet();
     await expect(withdraw(client, wallet, account, TO)).rejects.toBeInstanceOf(NothingToWithdrawError);
-    expect(sent).toHaveLength(0);
+    expect(prepared).toHaveLength(0);
   });
 
   it('sends nothing when the transfer estimate fails', async () => {
     const { client } = fakeClient({ estimateError: new TypeError('offline') });
-    const { wallet, sent } = fakeWallet();
+    const { wallet, prepared } = fakeWallet();
     await expect(withdraw(client, wallet, account, TO)).rejects.toBeInstanceOf(GasEstimateUnavailableError);
-    expect(sent).toHaveLength(0);
+    expect(prepared).toHaveLength(0);
   });
 
   it('throws TxReverted with the planned gas on a reverted receipt', async () => {
@@ -271,7 +281,16 @@ describe('planWithdraw and withdraw', () => {
     const { wallet } = fakeWallet();
     const error = await withdraw(client, wallet, account, TO).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(TxReverted);
-    expect(error).toMatchObject({ hash: HASH, gasLimit: 50_000n, blockNumber: 77n });
+    expect(error).toMatchObject({ hash: keccak256(SERIALIZED), gasLimit: 50_000n, blockNumber: 77n });
+  });
+
+  it('recovers when the answer to the send is lost but the transfer lands', async () => {
+    const { client, waits } = fakeClient({ balance: 1_000_000n, gas: 21_000n, maxFeePerGas: 5n });
+    const { wallet, prepared } = fakeWallet({ sendError: new HttpRequestError({ url: 'https://rpc', body: {} }) });
+    const result = await withdraw(client, wallet, account, TO);
+    expect(result).toEqual({ hash: keccak256(SERIALIZED), blockNumber: 77n });
+    expect(prepared).toHaveLength(1);
+    expect(waits).toEqual([{ hash: keccak256(SERIALIZED), timeout: LOST_ANSWER_WAIT_MS }]);
   });
 });
 

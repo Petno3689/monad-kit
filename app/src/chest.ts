@@ -1,5 +1,5 @@
 import { encodeEventTopics, numberToHex, pad } from 'viem';
-import type { Abi, Account, Address, Hex, PublicClient, Transport, WalletClient, Chain } from 'viem';
+import type { Abi, Account, Address, Hex, PublicClient } from 'viem';
 import type { Rarity } from '@shared/chestMath';
 import chestGameAbi from './abi/chestGame.abi.json';
 import randomSourceAbi from './abi/randomSource.abi.json';
@@ -7,6 +7,7 @@ import { actionCost } from './funds';
 import type { Eip1193Request } from './funds';
 import { decodeLogs, readLogsChunked } from './logs';
 import { sendContractTx } from './tx';
+import type { TxSender } from './tx';
 
 const chestAbi = chestGameAbi as Abi;
 const sourceAbi = randomSourceAbi as Abi;
@@ -130,7 +131,7 @@ export function openCost(quote: OpenQuote, gasMultiplierPct: number): bigint {
 
 interface TxDeps {
   publicClient: Pick<PublicClient, 'simulateContract' | 'estimateContractGas' | 'waitForTransactionReceipt'>;
-  walletClient: Pick<WalletClient<Transport, Chain, Account>, 'writeContract'>;
+  walletClient: TxSender;
   account: Account;
   chest: Address;
   gasMultiplierPct: number;

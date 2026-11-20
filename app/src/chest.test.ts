@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeAbiParameters, encodeEventTopics, toHex } from 'viem';
+import { encodeAbiParameters, encodeEventTopics, encodeFunctionData, keccak256, toHex } from 'viem';
 import type { Abi, Account, Address, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import chestGameAbi from './abi/chestGame.abi.json';
@@ -171,9 +171,11 @@ describe('readOpenQuote and openCost', () => {
   });
 });
 
+const SERIALIZED = `0x02${'ef'.repeat(40)}` as Hex;
+
 function fakeTx() {
   const simulated: Record<string, unknown>[] = [];
-  const written: Record<string, unknown>[] = [];
+  const prepared: Record<string, unknown>[] = [];
   const reads: string[] = [];
   const publicClient = {
     readContract: async (call: ReadCall) => {
@@ -188,29 +190,31 @@ function fakeTx() {
     waitForTransactionReceipt: async () => ({ status: 'success', blockNumber: 42n }),
   };
   const walletClient = {
-    writeContract: async (call: Record<string, unknown>) => {
-      written.push(call);
-      return HASH;
+    prepareTransactionRequest: async (call: Record<string, unknown>) => {
+      prepared.push(call);
+      return call;
     },
+    signTransaction: async () => SERIALIZED,
+    sendRawTransaction: async () => keccak256(SERIALIZED),
   };
-  return { publicClient: publicClient as never, walletClient: walletClient as never, simulated, written, reads };
+  return { publicClient: publicClient as never, walletClient: walletClient as never, simulated, prepared, reads };
 }
 
 describe('openChest and cancelChest', () => {
   it('open sends the fee read just before as the value', async () => {
-    const { publicClient, walletClient, simulated, written, reads } = fakeTx();
+    const { publicClient, walletClient, simulated, prepared, reads } = fakeTx();
     const result = await openChest({ publicClient, walletClient, account, chest: CHEST, gasMultiplierPct: 120 });
     expect(reads).toEqual(['randomSource', 'fee']);
-    expect(result).toEqual({ hash: HASH, blockNumber: 42n, fee: 777n });
+    expect(result).toEqual({ hash: keccak256(SERIALIZED), blockNumber: 42n, fee: 777n });
     expect(simulated[0]).toMatchObject({ address: CHEST, functionName: 'open', value: 777n });
-    expect(written[0]).toMatchObject({ functionName: 'open', value: 777n, gas: 120_000n });
+    expect(prepared[0]).toMatchObject({ data: encodeFunctionData({ abi, functionName: 'open', args: [] }), value: 777n, gas: 120_000n });
   });
 
   it('cancel calls cancel(player) with no value', async () => {
-    const { publicClient, walletClient, simulated, written } = fakeTx();
+    const { publicClient, walletClient, simulated, prepared } = fakeTx();
     await cancelChest({ publicClient, walletClient, account, chest: CHEST, player: PLAYER, gasMultiplierPct: 100 });
     expect(simulated[0]).toMatchObject({ address: CHEST, functionName: 'cancel', args: [PLAYER], value: 0n });
-    expect(written[0]).toMatchObject({ functionName: 'cancel', gas: 100_000n });
+    expect(prepared[0]).toMatchObject({ data: encodeFunctionData({ abi, functionName: 'cancel', args: [PLAYER] }), gas: 100_000n });
   });
 });
 
